@@ -1,0 +1,16 @@
+Number of lines= 3
+Time: 1: Node 1 started waiting for DIFS
+Time: 29: Node 1 finished waiting for DIFS and started waiting for 3 slots
+Time: 56: Node 1 finished waiting and is ready to send the packet.
+Time: 127: Node 1 sent 100 bits
+Time: 266: Node 0 started waiting for DIFS
+Time: 270: Node 2 started waiting for DIFS
+Time: 294: Node 0 finished waiting for DIFS and started waiting for 14 slots
+Time: 298: Node 2 finished waiting for DIFS and started waiting for 8 slots
+Time: 370: Node 2 finished waiting and is ready to send the packet.
+Time: 441: Node 2 sent 100 bits
+Time: 441: Node 0 had to wait for 6 more slots that channel became busy!
+Time: 441: Node 0 started waiting for DIFS
+Time: 469: Node 0 finished waiting for DIFS and started waiting for 6 slots (counter was freezed!)
+Time: 523: Node 0 finished waiting and is ready to send the packet.
+Time: 594: Node 0 sent 100 bits
