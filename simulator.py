@@ -34,6 +34,10 @@ class Packet:
             self.initial_wait = DIFS
         elif self.type == 'ACK':
             self.initial_wait = SIFS
+        elif self.type == 'rts':
+            self.initial_wait = RTS_CTS_TIME
+        elif self.type == 'cts':
+            self.initial_wait = RTS_CTS_TIME
 
     def updateTimeSent(self, new_time):
         """
@@ -233,7 +237,117 @@ def dcf(traffic, ignore=False):
     return (throughput, the_channel.total_transmitted, the_channel.collision_count, free_percentage, station_stats)
 
 def rts(traffic, ignore=False):
-    chkPrint("Not implemented", ignore)
+    """
+      Algorithm: Initially channel is idle, no packets are ready to send
+      1) If packets ready to send add packet to waiting list.
+      2) If channel idle do 3 else do 4
+      3) If wait_list contains packets get packets that are ready and decrement DIFS/Slot counter
+      4) increment time
+      5) If packet sent put rts on wait_list
+      6) if rts sent put cts
+      7) if cts sent put ack
+
+    :param traffic:
+    :param ignore:
+    :return:
+    """
+    packets, total_packets = Packet.PacketsFromTrafficFile(traffic, 'dcf')
+    chkPrint("Number of lines= {}".format(total_packets), ignore)
+    packets_sent = 0
+    current_time = 0
+    wait_list = WaitList()
+    the_channel = Channel('dcf')
+    ready_packets = []
+    bits_sent = 0
+    idle_time = 0
+    while packets_sent != total_packets:
+
+        #Add packets to wait_list if the channel is idle, store packets if it is busy
+        ready_packets += packets.get(current_time, [])
+        if len(ready_packets) > 0 and the_channel.state != "busy":
+            for p in ready_packets:
+                wait_list.addPacket(p, current_time)
+                chkPrint("Time: {}: Node {} started waiting for DIFS".format(current_time, p.curr_node), ignore)
+            ready_packets = []
+
+        if the_channel.state == 'idle':
+            idle_time += 1
+            #SIFS never goes on the wait_list
+            if wait_list.containsPackets():
+                #decrement DIFS wait and send ready packets
+                ready_difs = wait_list.readyDIFS(current_time) #this will decrement all SIF packet counters and return ready packets
+                for p in ready_difs:
+                    p.updateTimeSent(current_time)
+                    the_channel.add(p)
+                    wait_list.removePacket(p, current_time)
+                    chkPrint("Time: {}: Node {} finished waiting and is ready to send the packet.".format(current_time,p.curr_node),ignore)
+                if the_channel.state == 'busy':
+                    for p in wait_list.list:
+                        chkPrint("Time: {}: Node {} had to wait for {} more slots that channel became busy!".format(current_time, p.curr_node, p.slotted_wait/SLOT_TIME), ignore)
+                        p.frozen = True #so we can match the log output
+
+        elif the_channel.state == 'busy':
+            packets_finished = the_channel.dict.get(current_time, [])[:]
+            if len(packets_finished) > 0:
+                if the_channel.collision == True:
+                    for p in packets_finished:
+                        the_channel.remove(p)
+                        p.updateTimeSent(current_time + p.initial_wait)
+                        wait_list.addPacket(p, current_time, True) #add random backoff wait time
+                else:
+                    for p in packets_finished:
+                        if p.type == 'ACK':
+                            chkPrint("Time: {}: Node {} sent {} bits".format(current_time, p.ack_packet.curr_node, p.ack_packet.size),ignore)
+                            bits_sent += p.ack_packet.size + p.size
+                            packets_sent += 1
+                            the_channel.remove(p)
+                        elif p.type == 'normal':
+                            # send rts
+                            rts_packet = Packet(-1, p.send_node, p.curr_node, NET_SPEED*RTS_CTS_TIME, current_time, None, "rts", p)
+                            the_channel.remove(p)
+                            the_channel.add(rts_packet)
+                        elif p.type == 'rts':
+                            # send cts
+                            chkPrint("Time: {}: Node {} sent {} bits (RTS packet)".format(current_time, p.ack_packet.curr_node, p.ack_packet.size),ignore)
+                            bits_sent += p.ack_packet.size + p.size
+                            packets_sent += 1
+                            cts_packet = Packet(-1, p.send_node, p.curr_node, NET_SPEED*RTS_CTS_TIME, current_time, None, "cts", p)
+                            the_channel.remove(p)
+                            the_channel.add(cts_packet)
+                        elif p.type == 'cts':
+                            # send ACK
+                            chkPrint("Time: {}: Node {} sent {} bits(CTS packet)".format(current_time, p.ack_packet.curr_node, p.ack_packet.size),ignore)
+                            bits_sent += p.ack_packet.size + p.size
+                            packets_sent += 1
+                            ack_packet = Packet(-1, p.send_node, p.curr_node, NET_SPEED*ACK_TIME, current_time, None, "ACK", p)
+                            the_channel.remove(p)
+                            the_channel.add(ack_packet)
+
+
+
+                if the_channel.state == 'idle': #changed from busy to idle
+                    for p in wait_list.list:
+                        p.updateTimeSent(current_time + p.initial_wait + p.backoff_wait) #wait DIFS again
+                if current_time in the_channel.dict and len(the_channel.dict.get(current_time, [])) != 0:
+                    print "packets finished is: ", packets_finished
+                    print "What the hack2!"
+                    exit(0)
+        current_time += 1
+
+    throughput = (bits_sent/(float)(current_time-1))/1000*10e6 #in kbps
+    free_percentage = (idle_time / (float)(current_time)) * 100
+    station_stats = {}
+    for k,l in packets.iteritems():
+        for p in l:
+            station_stats.setdefault(p.curr_node, (0,0))
+            station_stats[p.curr_node] = (station_stats[p.curr_node][0]+p.finished_time-p.initial_finish_time, station_stats[p.curr_node][1]+1)
+    chkPrint("Throughput: {}kbps".format(throughput), ignore)
+    chkPrint("Total Transmissions: {}".format(the_channel.total_transmitted), ignore)
+    chkPrint( "Number Collisions: {}".format(the_channel.collision_count), ignore)
+    chkPrint("Medium free: {}% of the time".format(free_percentage), ignore)
+    for key, val in station_stats.iteritems():
+        chkPrint("Station {} Average Latency: {} microseconds Packets Sent {}".format(key, val[0]/(float)(val[1]), val[1]),ignore)
+    return (throughput, the_channel.total_transmitted, the_channel.collision_count, free_percentage, station_stats)
 
 def main(gen_file, sim_type):
     try:
