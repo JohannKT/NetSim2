@@ -171,9 +171,17 @@ def dcf(traffic, ignore=False):
         #Add packets to wait_list if the channel is idle, store packets if it is busy
         ready_packets += packets.get(current_time, [])
         if len(ready_packets) > 0 and the_channel.state != "busy":
+            """ Made change here to check to see if node is on wait list already"""
             for p in ready_packets:
-                wait_list.addPacket(p, current_time)
-                chkPrint("Time: {}: Node {} started waiting for DIFS".format(current_time, p.curr_node), ignore)
+                for f in wait_list.list:
+                    if f.curr_node == p.curr_node:
+                        p.updateTimeSent(current_time + 1)
+                        packets.setdefault(p.finished_time,[] ).append(p)
+                        break
+                else:
+                    wait_list.addPacket(p, current_time)
+                    chkPrint("Time: {}: Node {} started waiting for DIFS".format(current_time, p.curr_node), ignore)
+            """end change"""
             ready_packets = []
 
         if the_channel.state == 'idle':
@@ -196,10 +204,22 @@ def dcf(traffic, ignore=False):
             packets_finished = the_channel.dict.get(current_time, [])[:]
             if len(packets_finished) > 0:
                 if the_channel.collision == True:
+                    """ Made change here to check to see if node is on wait list already"""
                     for p in packets_finished:
-                        the_channel.remove(p)
-                        p.updateTimeSent(current_time + p.initial_wait)
-                        wait_list.addPacket(p, current_time, True) #add random backoff wait time
+                        for f in wait_list.list:
+                            if f.curr_node == p.curr_node:
+                                print "came here2"
+                                the_channel.remove(p)
+                                p.updateTimeSent(current_time + 1)
+                                packets.setdefault(p.finished_time, []).append(p)
+                                break
+                        else:
+                            print "came here"
+                            #raw_input()
+                            the_channel.remove(p)
+                            p.updateTimeSent(current_time + p.initial_wait)
+                            wait_list.addPacket(p, current_time, True) #add random backoff wait time
+                            """ end change"""
                 else:
                     for p in packets_finished:
                         if p.type == 'ACK':
@@ -260,14 +280,24 @@ def rts(traffic, ignore=False):
     ready_packets = []
     bits_sent = 0
     idle_time = 0
-    while packets_sent != total_packets:
+    while packets_sent < total_packets:
 
         #Add packets to wait_list if the channel is idle, store packets if it is busy
         ready_packets += packets.get(current_time, [])
         if len(ready_packets) > 0 and the_channel.state != "busy":
+            """ Made change here to check to see if node is on wait list already"""
             for p in ready_packets:
-                wait_list.addPacket(p, current_time)
-                chkPrint("Time: {}: Node {} started waiting for DIFS".format(current_time, p.curr_node), ignore)
+                for f in wait_list.list:
+                    if f.curr_node == p.curr_node:
+                        #print "Came to first if"
+                        p.updateTimeSent(current_time + 1)
+                        packets.setdefault(p.finished_time,[] ).append(p)
+                        break
+                else:
+                   # print "Came to first else"
+                    wait_list.addPacket(p, current_time)
+                    chkPrint("Time: {}: Node {} started waiting for DIFS".format(current_time, p.curr_node), ignore)
+            """ end change """
             ready_packets = []
 
         if the_channel.state == 'idle':
@@ -291,9 +321,22 @@ def rts(traffic, ignore=False):
             if len(packets_finished) > 0:
                 if the_channel.collision == True:
                     for p in packets_finished:
-                        the_channel.remove(p)
-                        p.updateTimeSent(current_time + p.initial_wait)
-                        wait_list.addPacket(p, current_time, True) #add random backoff wait time
+                        """ Made change here to check to see if node is on wait list already"""
+                        for f in wait_list.list:
+                            if f.curr_node == p.curr_node:
+                                print "came here2"
+                                the_channel.remove(p)
+                                p.updateTimeSent(current_time + 1)
+                                packets.setdefault(p.finished_time, []).append(p)
+                                break
+                        else:
+                            print "came here"
+                            #raw_input()
+                            the_channel.remove(p)
+                            p.updateTimeSent(current_time + p.initial_wait)
+                            wait_list.addPacket(p, current_time, True) #add random backoff wait time
+                        """ end changes """
+
                 else:
                     for p in packets_finished:
                         if p.type == 'ACK':
@@ -310,7 +353,7 @@ def rts(traffic, ignore=False):
                             # send cts
                             chkPrint("Time: {}: Node {} sent {} bits (RTS packet)".format(current_time, p.ack_packet.curr_node, p.ack_packet.size),ignore)
                             bits_sent += p.ack_packet.size + p.size
-                            packets_sent += 1
+                            #packets_sent += 1
                             cts_packet = Packet(-1, p.send_node, p.curr_node, NET_SPEED*RTS_CTS_TIME, current_time, None, "cts", p)
                             the_channel.remove(p)
                             the_channel.add(cts_packet)
@@ -318,7 +361,7 @@ def rts(traffic, ignore=False):
                             # send ACK
                             chkPrint("Time: {}: Node {} sent {} bits(CTS packet)".format(current_time, p.ack_packet.curr_node, p.ack_packet.size),ignore)
                             bits_sent += p.ack_packet.size + p.size
-                            packets_sent += 1
+                            #packets_sent += 1
                             ack_packet = Packet(-1, p.send_node, p.curr_node, NET_SPEED*ACK_TIME, current_time, None, "ACK", p)
                             the_channel.remove(p)
                             the_channel.add(ack_packet)
