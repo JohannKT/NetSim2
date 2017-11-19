@@ -166,6 +166,7 @@ def dcf(traffic, ignore=False):
     ready_packets = []
     bits_sent = 0
     idle_time = 0
+    nodes_wait = set() # keeping track of which nodes are on waitlist
     while packets_sent != total_packets:
 
         #Add packets to wait_list if the channel is idle, store packets if it is busy
@@ -173,12 +174,12 @@ def dcf(traffic, ignore=False):
         if len(ready_packets) > 0 and the_channel.state != "busy":
             """ Made change here to check to see if node is on wait list already"""
             for p in ready_packets:
-                for f in wait_list.list:
-                    if f.curr_node == p.curr_node:
-                        p.updateTimeSent(current_time + 1)
-                        packets.setdefault(p.finished_time,[] ).append(p)
-                        break
+                if p.curr_node in nodes_wait:
+                    p.updateTimeSent(current_time + 1)
+                    packets.setdefault(p.finished_time,[] ).append(p)
                 else:
+                    #print "Came to first else"
+                    nodes_wait.add(p.curr_node)
                     wait_list.addPacket(p, current_time)
                     chkPrint("Time: {}: Node {} started waiting for DIFS".format(current_time, p.curr_node), ignore)
             """end change"""
@@ -193,6 +194,7 @@ def dcf(traffic, ignore=False):
                 for p in ready_difs:
                     p.updateTimeSent(current_time)
                     the_channel.add(p)
+                    nodes_wait.remove(p.curr_node)
                     wait_list.removePacket(p, current_time)
                     chkPrint("Time: {}: Node {} finished waiting and is ready to send the packet.".format(current_time,p.curr_node),ignore)
                 if the_channel.state == 'busy':
@@ -206,16 +208,14 @@ def dcf(traffic, ignore=False):
                 if the_channel.collision == True:
                     """ Made change here to check to see if node is on wait list already"""
                     for p in packets_finished:
-                        for f in wait_list.list:
-                            if f.curr_node == p.curr_node:
-                                print "came here2"
-                                the_channel.remove(p)
-                                p.updateTimeSent(current_time + 1)
-                                packets.setdefault(p.finished_time, []).append(p)
-                                break
+                        if p.curr_node in nodes_wait:
+
+                            the_channel.remove(p)
+                            p.updateTimeSent(current_time + 1)
+                            packets.setdefault(p.finished_time, []).append(p)
+                            break
                         else:
-                            print "came here"
-                            #raw_input()
+                            nodes_wait.add(p.curr_node)
                             the_channel.remove(p)
                             p.updateTimeSent(current_time + p.initial_wait)
                             wait_list.addPacket(p, current_time, True) #add random backoff wait time
@@ -280,6 +280,7 @@ def rts(traffic, ignore=False):
     ready_packets = []
     bits_sent = 0
     idle_time = 0
+    nodes_wait = set() # keeping track of which nodes are on waitlist
     while packets_sent < total_packets:
 
         #Add packets to wait_list if the channel is idle, store packets if it is busy
@@ -287,14 +288,12 @@ def rts(traffic, ignore=False):
         if len(ready_packets) > 0 and the_channel.state != "busy":
             """ Made change here to check to see if node is on wait list already"""
             for p in ready_packets:
-                for f in wait_list.list:
-                    if f.curr_node == p.curr_node:
-                        #print "Came to first if"
-                        p.updateTimeSent(current_time + 1)
-                        packets.setdefault(p.finished_time,[] ).append(p)
-                        break
+                if p.curr_node in nodes_wait:
+                    p.updateTimeSent(current_time + 1)
+                    packets.setdefault(p.finished_time,[] ).append(p)
                 else:
-                   # print "Came to first else"
+                    #print "Came to first else"
+                    nodes_wait.add(p.curr_node)
                     wait_list.addPacket(p, current_time)
                     chkPrint("Time: {}: Node {} started waiting for DIFS".format(current_time, p.curr_node), ignore)
             """ end change """
@@ -309,6 +308,7 @@ def rts(traffic, ignore=False):
                 for p in ready_difs:
                     p.updateTimeSent(current_time)
                     the_channel.add(p)
+                    nodes_wait.remove(p.curr_node)
                     wait_list.removePacket(p, current_time)
                     chkPrint("Time: {}: Node {} finished waiting and is ready to send the packet.".format(current_time,p.curr_node),ignore)
                 if the_channel.state == 'busy':
@@ -322,16 +322,15 @@ def rts(traffic, ignore=False):
                 if the_channel.collision == True:
                     for p in packets_finished:
                         """ Made change here to check to see if node is on wait list already"""
-                        for f in wait_list.list:
-                            if f.curr_node == p.curr_node:
-                                print "came here2"
-                                the_channel.remove(p)
-                                p.updateTimeSent(current_time + 1)
-                                packets.setdefault(p.finished_time, []).append(p)
-                                break
+
+                        if p.curr_node in nodes_wait:
+
+                            the_channel.remove(p)
+                            p.updateTimeSent(current_time + 1)
+                            packets.setdefault(p.finished_time, []).append(p)
+                            break
                         else:
-                            print "came here"
-                            #raw_input()
+                            nodes_wait.add(p.curr_node)
                             the_channel.remove(p)
                             p.updateTimeSent(current_time + p.initial_wait)
                             wait_list.addPacket(p, current_time, True) #add random backoff wait time
