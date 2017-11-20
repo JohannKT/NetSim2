@@ -7,13 +7,13 @@ import datetime
 from multiprocessing.pool import ThreadPool
 
 
-def getTraffic(num_node, pkt_size, offered_load, num_pkts_per_node, seed = time.time()):
+def getTraffic(num_node, offered_load, num_pkts_per_node, dist, average_packet, seed = time.time()):
     """
     Generates traffic based on the parameters and returns it in a way that it can be passed to the simlator functions
     :return:
     """
     generate_file = False #for readability
-    traffic = generator.generate_file(num_node, pkt_size, offered_load, num_pkts_per_node, seed, generate_file)
+    traffic = generator.generate_file(num_node, offered_load, num_pkts_per_node, dist, average_packet, seed)
     del traffic[0]
     traffic = [x.strip() for x in traffic]
     return traffic
@@ -65,14 +65,15 @@ def main():
     throughput_to_offeredLoad = {"Dcf":[], "RTS/CTS":[]}
     offered_loads = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0, 7.0, 8.0]
     num_node = 5
-    pkt_size = 100
-    num_pkts_per_node = 100 # total of 100,000 packets per requirements
+    dist = 'u'
+    average_packet = 300
+    num_pkts_per_node = 10000 # total of 100,000 packets per requirements
     max_utilization = 1000.0 #1000 kbps = 1mbps, we are at max if we are using the entire 1mbps
     pool = ThreadPool(processes=2)
 
     for ol in offered_loads:
         print "Trying load: {}".format(ol)
-        traffic = getTraffic(num_node, pkt_size, ol, num_pkts_per_node)
+        traffic = getTraffic(num_node, ol, num_pkts_per_node, dist, average_packet )
         #returns (throughput, the_channel.total_transmitted, the_channel.collision_count, free_percentage, station_stats)
         dcf = pool.apply_async(rAnalysis, ([traffic]))
         rts = pool.apply_async(dcfAnalysis, ([traffic]))
