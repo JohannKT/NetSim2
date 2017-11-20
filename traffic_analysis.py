@@ -26,7 +26,7 @@ def dcfAnalysis(traffic):
     :param traffic: should be the return value of getTraffic
     :return: returns a tuple (successfully_transmitted, failed, throughput)
     """
-    return simulator.dcf(traffic, True)
+    return simulator.Simulate(traffic, "dcf", True)
 
 def rAnalysis(traffic):
     """
@@ -34,7 +34,7 @@ def rAnalysis(traffic):
     :param traffic: should be the return value of getTraffic
     :return: returns a tuple (successfully_transmitted, failed, throughput)
     """
-    return simulator.rts(traffic, True)
+    return simulator.Simulate(traffic, "rts", True)
 
 def generateGraph(vals):
     """
@@ -68,7 +68,7 @@ def main():
     dist = 'u'
     average_packet = 300
     num_pkts_per_node = 10000 # total of 100,000 packets per requirements
-    max_utilization = 1000.0 #1000 kbps = 1mbps, we are at max if we are using the entire 1mbps
+    max_utilization = 6000.0 #1000 kbps = 1mbps, we are at max if we are using the entire 1mbps
     pool = ThreadPool(processes=2)
 
     for ol in offered_loads:
@@ -79,9 +79,6 @@ def main():
         rts = pool.apply_async(dcfAnalysis, ([traffic]))
         throughput_to_offeredLoad["Dcf"].append((dcf.get()[2] / max_utilization, ol))
         throughput_to_offeredLoad["RTS/CTS"].append((rts.get()[2] / max_utilization, ol))
-        if ol > 4:
-            break
-
 
     generateGraph(throughput_to_offeredLoad)
 
