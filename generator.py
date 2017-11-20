@@ -1,7 +1,10 @@
 import argparse
 import random
+import numpy as np
+from scipy.stats import truncnorm
 import time
 import os
+import sys
 
 
 
@@ -11,8 +14,18 @@ import os
         pkt_size + gap           num_node
 """
 
+
+max_packet_size = 2000
+min_packet_size = 100
+
+
 def getKey(item):
     return item[0]
+
+def get_truncated_normal(mean=0, low=1):
+    upp = 2*mean
+    sd = mean / 6
+    return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)
 
 def calculate_gap(pkt_size, num_node, offered_load):
     #TODO right now we force it to be an int but we need to figure out if it is the floor or ceiling we should be using
@@ -28,16 +41,21 @@ def get_send_node(num_node, cur_node):
     return send
 
 
-def generate_file(num_node, pkt_size, offered_load, num_pkts_per_node, seed, gen_file = True):
+def generate_file(num_node, offered_load, num_pkts_per_node, dist, avg_gap = 0, seed=None, gen_file = True ):
     # create dict for keeping track of packets sent by each node
     # Each dict's key is the node number
-    gap = int(calculate_gap(pkt_size, num_node, offered_load))
+    pkt_size = random.randint(min_packet_size, max_packet_size)
+    gap = int(calculate_gap(avg_gap, num_node, offered_load))
     packets_sent = {}
     node_time = {}
     packets_left = num_pkts_per_node * num_node #total number of packets
     current_time = 0
     output_array= []
     count = 0 #used for creating unique packet IDs
+    if(dist == 'n'):
+        norm = get_truncated_normal(avg_gap)
+        norm = norm.rvs(packets_left)
+
 
 
     if gen_file:
@@ -50,9 +68,14 @@ def generate_file(num_node, pkt_size, offered_load, num_pkts_per_node, seed, gen
 
     #keep going until all values in dict are 0 meaning all have sent their packets
     while  not all(value == 0 for value in packets_sent.values()):
-        rand_gap = random.randint(1,2*gap)
+        if(dist == 'u'):
+            rand_gap = random.randint(1,2*gap)
+        elif(dist == 'n'):
+            rand_gap = int(random.choice(norm))
+        else:
+            "invalid Distribution type 'u' - uniform, 'n' - normal"
+            sys.exit(1)
         pkt_size = random.randint(100, 2000)
-        gap = int(calculate_gap(pkt_size, num_node, offered_load))
         cur_node = 0
 
         while True:
@@ -89,10 +112,13 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description='Get input to generator')
     parser.add_argument("num_node", help="The number of nodes used in simulation.", type=int)
-    parser.add_argument("pkt_size", help="Size of packets to be  generated.", type=int)
     parser.add_argument("offered_load", help=" measure of the traffic compared to the channel capacity.", type=float)
     parser.add_argument("num_pkts_per_node", help=" Number of packets sent per node in traffic file generated.", type=int)
+    parser.add_argument("dist", help="Uniform or Exponential Distribution.", type=str)
     parser.add_argument('seed', nargs='?', default=time.time(), type=int)
+    parser.add_argument('avg_gap', nargs='?', default=500, type=int)
+
+
     args = parser.parse_args()
     #this is just so it easier to call generate_file from a script (so we can auto generate traffic)
-    generate_file(args.num_node, args.pkt_size, args.offered_load, args.num_pkts_per_node, args.seed)
+    generate_file(args.num_node, args.offered_load, args.num_pkts_per_node, args.dist,args.avg_gap, args.seed)
