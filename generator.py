@@ -45,16 +45,26 @@ def generate_file(num_node, offered_load, num_pkts_per_node, dist, avg_gap = 0, 
     # create dict for keeping track of packets sent by each node
     # Each dict's key is the node number
     pkt_size = random.randint(min_packet_size, max_packet_size)
-    gap = int(calculate_gap(avg_gap, num_node, offered_load))
+
     packets_sent = {}
     node_time = {}
     packets_left = num_pkts_per_node * num_node #total number of packets
     current_time = 0
     output_array= []
+    pkt_sizes = []
     count = 0 #used for creating unique packet IDs
+    for x in range(0, packets_left):
+        pkt_sizes.append(random.randint(100,2000))
+    avg_size = int(sum(pkt_sizes) / float(len(pkt_sizes)))
     if(dist == 'n'):
-        norm = get_truncated_normal(avg_gap)
+        norm = get_truncated_normal(avg_size)
         norm = norm.rvs(packets_left)
+        avg_size = int(sum(norm) / float(len(norm)))
+    elif dist == 'u':
+        gap = int(calculate_gap(avg_size, num_node, offered_load))
+    else:
+        print "invalid Distribution type 'u' - uniform, 'n' - normal"
+        sys.exit(1)
 
 
 
@@ -69,13 +79,13 @@ def generate_file(num_node, offered_load, num_pkts_per_node, dist, avg_gap = 0, 
     #keep going until all values in dict are 0 meaning all have sent their packets
     while  not all(value == 0 for value in packets_sent.values()):
         if(dist == 'u'):
-            rand_gap = random.randint(1,2*gap)
+            rand_gap = random.randint(0,2*gap)
+            pkt_size =  pkt_sizes.pop()
         elif(dist == 'n'):
             rand_gap = int(random.choice(norm))
-        else:
-            "invalid Distribution type 'u' - uniform, 'n' - normal"
-            sys.exit(1)
-        pkt_size = random.randint(100, 2000)
+            pkt_size =  pkt_sizes.pop()
+
+
         cur_node = 0
 
         while True:

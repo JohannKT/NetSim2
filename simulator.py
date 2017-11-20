@@ -35,9 +35,9 @@ class Packet:
         elif self.type == 'ACK':
             self.initial_wait = SIFS
         elif self.type == 'rts':
-            self.initial_wait = RTS_CTS_TIME
+            self.initial_wait = SIFS
         elif self.type == 'cts':
-            self.initial_wait = RTS_CTS_TIME
+            self.initial_wait = SIFS
 
     def updateTimeSent(self, new_time):
         """
@@ -222,10 +222,11 @@ def Simulate(traffic, algorithm, ignore=False):
                         wait_list.addPacket(p, current_time, True) #add random backoff wait time
                         """ end change"""
                 else:
+                    #def __init__(self, id, curr_node, send_node, size, time, algorithm, type='normal', ack_packet = None)
                     for p in packets_finished:
                         if p.type == 'ACK':
                             chkPrint("Time: {}: Node {} sent {} bits".format(current_time, p.ack_packet.curr_node, p.ack_packet.size),ignore)
-                            bits_sent += p.ack_packet.size + p.size
+                            bits_sent +=  p.size
                             packets_sent += 1
                             the_channel.remove(p)
                         elif p.type == 'normal':
@@ -243,7 +244,7 @@ def Simulate(traffic, algorithm, ignore=False):
                         elif p.type == 'rts':
                             # send cts
                             chkPrint("Time: {}: Node {} sent {} bits (RTS packet)".format(current_time, p.ack_packet.curr_node, p.ack_packet.size),ignore)
-                            bits_sent += p.ack_packet.size + p.size
+
                             #packets_sent += 1
                             cts_packet = Packet(-1, p.send_node, p.curr_node, NET_SPEED*RTS_CTS_TIME, current_time, None, "cts", p)
                             the_channel.remove(p)
@@ -251,7 +252,7 @@ def Simulate(traffic, algorithm, ignore=False):
                         elif p.type == 'cts':
                             # send ACK
                             chkPrint("Time: {}: Node {} sent {} bits(CTS packet)".format(current_time, p.ack_packet.curr_node, p.ack_packet.size),ignore)
-                            bits_sent += p.ack_packet.size + p.size
+
                             #packets_sent += 1
                             ack_packet = Packet(-1, p.send_node, p.curr_node, NET_SPEED*ACK_TIME, current_time, None, "ACK", p)
                             the_channel.remove(p)
@@ -265,14 +266,14 @@ def Simulate(traffic, algorithm, ignore=False):
                     exit(0)
         current_time += 1
 
-    throughput = (bits_sent/(float)(current_time-1))/1000*10e6 #in kbps
+    throughput =  (bits_sent / (float)( (current_time-1) * 10e-6)) #in kbps
     free_percentage = (idle_time / (float)(current_time)) * 100
     station_stats = {}
     for k,l in packets.iteritems():
         for p in l:
             station_stats.setdefault(p.curr_node, (0,0))
             station_stats[p.curr_node] = (station_stats[p.curr_node][0]+p.finished_time-p.initial_finish_time, station_stats[p.curr_node][1]+1)
-    chkPrint("Throughput: {}kbps".format(throughput), ignore)
+    chkPrint("Throughput: {}kbps".format(throughput/1000), ignore)
     chkPrint("Total Transmissions: {}".format(the_channel.total_transmitted), ignore)
     chkPrint( "Number Collisions: {}".format(the_channel.collision_count), ignore)
     chkPrint("Medium free: {}% of the time".format(free_percentage), ignore)
