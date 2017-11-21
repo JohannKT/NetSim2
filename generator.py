@@ -41,7 +41,7 @@ def get_send_node(num_node, cur_node):
     return send
 
 
-def generate_file(num_node, offered_load, num_pkts_per_node, dist, avg_gap = 0, seed=None, gen_file = True ):
+def generate_file(num_node, offered_load, num_pkts_per_node, dist, seed=None, gen_file = True ):
     # create dict for keeping track of packets sent by each node
     # Each dict's key is the node number
     pkt_size = random.randint(min_packet_size, max_packet_size)
@@ -126,9 +126,9 @@ if __name__ == "__main__":
     parser.add_argument("num_pkts_per_node", help=" Number of packets sent per node in traffic file generated.", type=int)
     parser.add_argument("dist", help="Uniform or Exponential Distribution.", type=str)
     parser.add_argument('seed', nargs='?', default=time.time(), type=int)
-    parser.add_argument('avg_gap', nargs='?', default=500, type=int)
+
 
 
     args = parser.parse_args()
     #this is just so it easier to call generate_file from a script (so we can auto generate traffic)
-    generate_file(args.num_node, args.offered_load, args.num_pkts_per_node, args.dist,args.avg_gap, args.seed)
+    generate_file(args.num_node, args.offered_load, args.num_pkts_per_node, args.dist, args.seed)
